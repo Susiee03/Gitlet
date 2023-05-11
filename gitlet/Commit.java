@@ -2,9 +2,23 @@ package gitlet;
 
 // TODO: any imports you need here
 
+import static gitlet.Repository.CWD;
+import static gitlet.Repository.OBJECT_DIR;
+
+import static gitlet.Repository.blobs;
+import static gitlet.Utils.join;
+import static gitlet.Utils.readObject;
+
 import java.io.File;
 import java.io.Serializable;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /** Represents a gitlet commit object.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -24,7 +38,7 @@ public class Commit implements Serializable {
     /** The message of this Commit. */
     private String message;
     /** The timestamp for this Commit. */
-    private Date timestamp;
+    private String timestamp;
     /** the tracked parent  */
     private String parent; //the file name where the commit object can be found, in this case is the sha1 of the parent commit
 
@@ -34,20 +48,32 @@ public class Commit implements Serializable {
     /**the commit file actually stored under the object file*/
     private File commitFileName;
 
-    /** the add file's actual name, a string that is actually stored in commit object*/
-
-
+    /** the commit object tracked blob files, key is the blob file name, value is the blob sha1*/
+    private Map<String,String> tracked = new HashMap<>();
     /* TODO: fill in the rest of this class. */
 
+    /** Initial Commit, commit at the first time*/
     public Commit(){
         message = "initial commit";
-        timestamp = new Date(0);
-        parent = null;
+        timestamp = dateToTimeStamp(new Date(0));
+        parent = "";
         sha1 = generateSHA1();
-        commitFileName = Utils.join(Repository.OBJECT_DIR, sha1);
+        commitFileName = Utils.join(Repository.commits, sha1);
     }
 
+    /** Commit command after the initial commit*/
+    public Commit(String message, String parent) {
+        timestamp = dateToTimeStamp(new Date());
+        this.message = message;
+        this.parent = parent;
+        sha1 = generateSHA1();
+    }
 
+    /** transfer the time stamp to the required date format, for passing the test*/
+    private static String dateToTimeStamp(Date date) {
+        DateFormat dateFormat = new SimpleDateFormat("EEE MMM d HH:mm:ss yyyy Z", Locale.US);
+        return dateFormat.format(date);
+    }
     /**
      * Saves the commit to a file for future use.
      */
@@ -55,17 +81,58 @@ public class Commit implements Serializable {
         File currCo = Utils.join(Repository.commits, sha1);
         Utils.writeObject(currCo, this);
     }
-
+    /** Generate the commit sha1 hashcode*/
     private String generateSHA1() {
-        return Utils.sha1(Utils.serialize(this));
+        return Utils.sha1(message,timestamp,parent);
     }
 
+    /** get the commit sha1 */
     public String getSha1() {
         return sha1;
+    }
+
+
+    /** get the current commit's tracked blobs*/
+    public Map<String,String> getTracked() {
+        return tracked;
+    }
+
+
+    /** set the tracked blobs file from the parent commit*/
+    public void setTracked (Map<String,String> parentTracked){
+        tracked = parentTracked;
+    }
+
+    /** add the tracked blob in the stage for addtion part, blobFileName is usually created by user*/
+    public void addTracked(String blobFileName, String blobSha1) {
+        tracked.put(blobFileName, blobSha1);
+    }
+
+
+    /** untracked the blob in current commit, when got the rm command*/
+    public void untracked(String blobFileName) {
+        tracked.remove(blobFileName);
+    }
+
+    /** get the parent of commit*/
+    public String getParent(){
+        return parent;
+    }
+
+    /** get the time stamp in string*/
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    /** get the commit message*/
+    public String getMessage () {
+        return message;
     }
 
     // need a method to get the working directory's file name, stored as string in commit object
     public String getWorkingDirectoryFileName() {
         return null;
     }
+
+
 }

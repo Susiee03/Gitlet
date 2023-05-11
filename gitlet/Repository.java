@@ -44,7 +44,7 @@ public class Repository {
     public static final File REFS_DIR = join (GITLET_DIR, "refs");
     public static final File heads = join(REFS_DIR, "heads");
     public static final File remotes = join(REFS_DIR, "remotes");
-    public static final File HEAD_FILE= join(GITLET_DIR, "HEAD");
+    public static final File HEAD= join(GITLET_DIR, "HEAD");
     public static final File STAGES_FILE = join(GITLET_DIR, "stages");
 
     /* TODO: fill in the rest of this class. */
@@ -59,7 +59,7 @@ public class Repository {
             REFS_DIR.mkdir();
             heads.mkdir();
             remotes.mkdir();
-            HEAD_FILE.createNewFile();
+            HEAD.createNewFile();
             STAGES_FILE.createNewFile();
 
         }

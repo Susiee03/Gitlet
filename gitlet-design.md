@@ -24,6 +24,19 @@ ensure the structure of gitlet, and created the persistence.
 * Files followed by the structures
 
 #### Methods:
+* setUp() - follow the directory and file structure, set up the .gitlet
+* file.
+
+
+
+### Class 2: Gitlet
+// wrap all the gitlet command into this class.
+#### Fields:
+* files and directory from the Repository class
+* currBranch record the current branch of gitlet command
+* currCommit record the latest commit in the current branch
+
+#### Methods:
 * init() - initial commit (need the Commit class), single master branch, set all related files and directories.
 * ![img_3.png](img_3.png)
 * 
@@ -31,8 +44,13 @@ ensure the structure of gitlet, and created the persistence.
 ![img_4.png](img_4.png)
 * 
 
+* commit(String message) - 
 
-### Class 2: Commit 
+
+
+* rm (String filename) - 
+
+### Class 3: Commit 
 //learnt from the helper video, also can be used in blob class
 ![img.png](img.png)
 
@@ -46,14 +64,15 @@ ensure the structure of gitlet, and created the persistence.
 
 #### Methods:
 
-//need a method to get the working directory's file name
-, stored as string in commit object
+//in commit, the key of the map is the file name usually created by user, value is blob's sha1.
 
 
+After the commit command, the .gitlet looks like:
+![img_5.png](img_5.png)
 
-### Class 3: Blob
+### Class 4: Blob
 //another object, the structure is similar to Commit, but 
-easier to construct
+easier to construct.For each blob object, blob's filename is blob sha1, content is the bytes
 
 #### Fields
 1. Field 1
@@ -65,7 +84,7 @@ easier to construct
 
 
 
-### Class 4: Stage
+### Class 5: Stage
 //from the helper video and slides, after the commit, 
 the staging area looks like:
 ![img_2.png](img_2.png)
