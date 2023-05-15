@@ -48,9 +48,9 @@ public class Commit implements Serializable {
     /**the commit file actually stored under the object file*/
     private File commitFileName;
 
-    /** the commit object tracked blob files, key is the blob file name, value is the blob sha1*/
+    /** the commit object tracked blob files, key is the file name, value is the blob sha1*/
     private Map<String,String> tracked = new HashMap<>();
-    /* TODO: fill in the rest of this class. */
+
 
     /** Initial Commit, commit at the first time*/
     public Commit(){
@@ -129,10 +129,7 @@ public class Commit implements Serializable {
         return message;
     }
 
-    // need a method to get the working directory's file name, stored as string in commit object
-    public String getWorkingDirectoryFileName() {
-        return null;
-    }
+
 
 
 }

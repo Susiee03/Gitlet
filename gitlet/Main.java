@@ -73,19 +73,43 @@ public class Main {
                 validateNumArgs("find", args, 2);
                 checkIfInitialized();
                 Gitlet.find(args[1]);
+                break;
 
             case "status":
                 checkIfInitialized();
                 Gitlet.status();
+                break;
 
             case "checkout":
                 checkIfInitialized();
-                if (args[1].equals("--")) {
-                    Gitlet.checkout(args[2]);
-                    break;
+                switch (args.length) {
+                    case 3:
+                        if (args[1].equals("--")) {
+                            Gitlet.checkout(args[2]);
+                            break;
+                        }
+                    case 4:
+                        if (args[2].equals("--")) {
+                            Gitlet.checkout(args[1], args[3]);
+                            break;
+                        }
+                    case 2:
+                        Gitlet.checkoutBranch(args[1]);
+                        break;
                 }
+                break;
 
+            case "branch":
+                checkIfInitialized();
+                validateNumArgs("branch", args, 2);
+                Gitlet.branch(args[1]);
+                break;
 
+            case "rm-branch":
+                checkIfInitialized();
+                validateNumArgs("rm-branch", args, 2);
+                Gitlet.rm_branch(args[1]);
+                break;
         }
 
     }
