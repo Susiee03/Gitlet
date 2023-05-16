@@ -493,17 +493,9 @@ public class Gitlet {
     //file tracked by both current commit and target commit
     List<String> fileTrackedBoth = findFileBothTracked(currCommit, target);
 
-    //compare the both tracked file's blobID, if different, CWD overwrite the file same as file tracked by target
-    for (String file: fileTrackedBoth) {
-      String blobSha1InCurrCommit = currCommit.getTracked().get(file);
-      String blobSha1InTargetCommit = target.getTracked().get(file);
-      if (!blobSha1InCurrCommit.equals(blobSha1InTargetCommit)) {
-        File fileInCWD = Utils.join(CWD, file);
-        File blobInTarget = Utils.join(blobs, blobSha1InTargetCommit);
-        byte[] contents = Utils.readContents(blobInTarget);
-        Utils.writeContents(fileInCWD, new String(contents, StandardCharsets.UTF_8));
-      }
-    }
+    //compare the both tracked file's blobID, if different, CWD overwrite the file same as file
+    // tracked by target
+    compareTrackedFiles(fileTrackedBoth, currCommit, target);
 
     //file only tracked by current commit, not the target commit
     List<String> fileOnlyTrackedByCurr = findFileOnlyTrackedByCurr(currCommit,target);
@@ -515,29 +507,7 @@ public class Gitlet {
 
     //file only tracked by target commit, not current commit.
     List<String> fileOnlyTrackedByTarget = findFileOnlyTrackedByTarget(currCommit, target);
-    //Put it in CWD, if the CWD exists the file with the same name, meaning it is untracked.
-    for (String file: fileOnlyTrackedByTarget) {
-      File fileInCWD = Utils.join(CWD, file);
-      if (fileInCWD.exists()) {
-        System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-        System.exit(0);
-      }
-      //or the CWD has other files, that doesn't track by target commit
-      List<String> fileListInCWD = Utils.plainFilenamesIn(CWD);
-      for (String s: fileListInCWD) {
-        if (! fileOnlyTrackedByTarget.contains(s)) {
-          System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-          System.exit(0);
-        }
-      }
-
-      //otherwise, it is not untracked.
-      fileInCWD.createNewFile();
-      String blobSha1InTargetCommit = target.getTracked().get(file);
-      File blobInTarget = Utils.join(blobs, blobSha1InTargetCommit);
-      byte[] contents = Utils.readContents(blobInTarget);
-      Utils.writeContents(fileInCWD, new String(contents, StandardCharsets.UTF_8));
-    }
+    putIntoCWD(fileOnlyTrackedByTarget, currCommit, target);
 
     //clear the stages
     Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
@@ -559,7 +529,7 @@ public class Gitlet {
   /** Helper method, check whether the branch exists in .gitlet. */
   private static void checkBranchExists(String branchName) {
     List<String> branchList = Utils.plainFilenamesIn(heads);
-    if (!Objects.requireNonNull(branchList).contains(branchName)) {
+    if (!branchList.contains(branchName)) {
       System.out.println("No such branch exists.");
       System.exit(0);
     }
@@ -589,13 +559,10 @@ public class Gitlet {
     }
 
     for (String file: curr.getTracked().keySet()) {
-      for (String key: commit.getTracked().keySet()) {
-        if (!file.equals(key)) {
-          fileTrackedOnlyByCurr.add(file);
-        }
+      if (!commit.getTracked().keySet().contains(file)) {
+        fileTrackedOnlyByCurr.add(file);
       }
     }
-
     return  fileTrackedOnlyByCurr;
   }
 
@@ -609,15 +576,60 @@ public class Gitlet {
     }
 
     for (String file: commit.getTracked().keySet()) {
-      for (String key: curr.getTracked().keySet()) {
-        if (!file.equals(key)) {
-          fileTrackedOnlyByTarget.add(file);
-        }
+      if (! curr.getTracked().keySet().contains(file)) {
+        fileTrackedOnlyByTarget.add(file);
       }
     }
     return  fileTrackedOnlyByTarget;
   }
 
+  /** Helper method, used for compare both tracked files in two commits, if different,
+   * CWD overwrite the file same as file tracked by target*/
+  private static void compareTrackedFiles(List<String> fileTrackedByBoth, Commit cCommit, Commit target) {
+    for (String file : fileTrackedByBoth) {
+      String blobSha1InCurrCommit = cCommit.getTracked().get(file);
+      String blobSha1InTargetCommit = target.getTracked().get(file);
+      if (!blobSha1InCurrCommit.equals(blobSha1InTargetCommit)) {
+        File fileInCWD = Utils.join(CWD, file);
+        File blobInTarget = Utils.join(blobs, blobSha1InTargetCommit);
+        byte[] contents = Utils.readContents(blobInTarget);
+        Utils.writeContents(fileInCWD, new String(contents, StandardCharsets.UTF_8));
+      }
+    }
+  }
+
+
+  /** Helper method. Put the file only tracked by target commit into the CWD. Raise error if there
+   * are untracked files in CWD. */
+  private static void putIntoCWD(List<String> fileOnlyTrackedByTarget, Commit curr, Commit target)
+      throws IOException {
+
+    if (fileOnlyTrackedByTarget.isEmpty()) {
+      return;
+    }
+
+    //Put the target commit tracked files in CWD.
+    for (String file: fileOnlyTrackedByTarget) {
+      File fileInCWD = Utils.join(CWD, file);
+      //If the CWD exists the file with the same name, meaning it is untracked.
+      if (fileInCWD.exists()) {
+        System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+        System.exit(0);
+      }
+
+      //otherwise, it is tracked.
+      fileInCWD.createNewFile();
+      String blobSha1InTargetCommit = target.getTracked().get(file);
+
+      File blobInTarget = Utils.join(blobs, blobSha1InTargetCommit);
+      Blob b =readObject(blobInTarget, Blob.class);
+      Utils.writeContents(fileInCWD, new String(b.getContents(), StandardCharsets.UTF_8));
+/*    byte[] contents = Utils.readContents(blobInTarget);
+      Utils.writeContents(fileInCWD, new String(contents, StandardCharsets.UTF_8));
+      //    It will cause GBK failed in test
+      */
+    }
+  }
 
 
   /** Creates a new branch with a given name, and points at the current head commit. A name for
@@ -673,4 +685,58 @@ public class Gitlet {
       System.exit(0);
     }
   }
+
+  /** Reset command. Checks out all files tracked by the given commit. Removes tracked files that are
+   * not presented in that commit. Also moves current branch's head to that commit node. The staging
+   * area is cleared. Similar to a checkout commit, but the current branch head is also changed.
+   * Updating the index/stage, moving the head. */
+  public static void reset(String commitID) throws IOException {
+    checkCommitExists(commitID);
+
+    //remove tracked files in current commit that are not presented in reset target commit.
+    currCommit = retrieveCurrentCommit();
+    Commit resetTarget = retrieveCommit(commitID);
+
+    List<String> fileTrackedByBoth = findFileBothTracked(currCommit, resetTarget);
+    compareTrackedFiles(fileTrackedByBoth, currCommit, resetTarget);  //overwrite
+
+    List<String> fileOnlyTrackedByCurr = findFileOnlyTrackedByCurr(currCommit, resetTarget);
+    for (String file: fileOnlyTrackedByCurr) {
+      Utils.restrictedDelete(file);
+    }
+
+    List<String> fileOnlyTrackedByReset = findFileOnlyTrackedByTarget(currCommit,resetTarget);
+    //This method considered the untracked files error
+    putIntoCWD(fileOnlyTrackedByReset, currCommit, resetTarget);
+
+    //moving the current branch points to the reset target commit.
+    currBranch = readCurrBranch();  //refs/heads/master
+    String cBranch = currBranch.substring(currBranch.lastIndexOf("\\")+1); //master
+    File headsFile = Utils.join(heads, cBranch);
+    headsFile.createNewFile();
+    Utils.writeContents(headsFile, commitID);
+
+    //moving the HEAD to reset commit as well
+    setHEAD(cBranch);
+
+    //clear the staging area
+    Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
+    stage.clear();
+    stage.save();
+
+  }
+
+
+  /** Helper method, check whether the commit exists with that commitID. */
+  private static void checkCommitExists(String commitID) {
+    List<String> commitList = Utils.plainFilenamesIn(commits);
+    if (! commitList.contains(commitID)) {
+      System.out.println("No commit with that id exists.");
+      System.exit(0);
+    }
+  }
+
+
+  
+
 }

@@ -110,6 +110,12 @@ public class Main {
                 validateNumArgs("rm-branch", args, 2);
                 Gitlet.rm_branch(args[1]);
                 break;
+
+            case "reset":
+                checkIfInitialized();
+                validateNumArgs("reset", args, 2);
+                Gitlet.reset(args[1]);
+                break;
         }
 
     }
