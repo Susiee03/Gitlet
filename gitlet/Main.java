@@ -116,6 +116,12 @@ public class Main {
                 validateNumArgs("reset", args, 2);
                 Gitlet.reset(args[1]);
                 break;
+
+            case "merge":
+                checkIfInitialized();
+                validateNumArgs("merge", args, 2);
+                Gitlet.merge(args[1]);
+                break;
         }
 
     }

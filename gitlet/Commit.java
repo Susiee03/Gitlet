@@ -42,6 +42,9 @@ public class Commit implements Serializable {
     /** the tracked parent  */
     private String parent; //the file name where the commit object can be found, in this case is the sha1 of the parent commit
 
+    /** the second parent, used in merge. */
+    private String second_parent;
+
     /**the SHA1 for each commit object*/
     private String sha1;
 
@@ -62,10 +65,11 @@ public class Commit implements Serializable {
     }
 
     /** Commit command after the initial commit*/
-    public Commit(String message, String parent) {
+    public Commit(String message, String parent, String second_parent) {
         timestamp = dateToTimeStamp(new Date());
         this.message = message;
         this.parent = parent;
+        this.second_parent = second_parent;
         sha1 = generateSHA1();
     }
 

@@ -1,16 +1,17 @@
 package gitlet;
 
 import static gitlet.Utils.*;
+import static java.lang.Integer.MAX_VALUE;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 
 public class Gitlet {
   /**
@@ -182,7 +183,7 @@ public class Gitlet {
     //then generate a new commit, parent is the previous commit,clone the previous commit for the first time commit
     Commit parentCommit = retrieveCurrentCommit();
     String parent = parentCommit.getSha1();
-    currCommit = new Commit(message, parent);
+    currCommit = new Commit(message, parent, "");
 
     //New commit tracked the saved files. By default, each commit's snapshot will be exactly the same as its parents,
     //it will keep versions of files exactly as they are, and not update them
@@ -507,7 +508,7 @@ public class Gitlet {
 
     //file only tracked by target commit, not current commit.
     List<String> fileOnlyTrackedByTarget = findFileOnlyTrackedByTarget(currCommit, target);
-    putIntoCWD(fileOnlyTrackedByTarget, currCommit, target);
+    putIntoCWD(fileOnlyTrackedByTarget, target);
 
     //clear the stages
     Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
@@ -601,7 +602,7 @@ public class Gitlet {
 
   /** Helper method. Put the file only tracked by target commit into the CWD. Raise error if there
    * are untracked files in CWD. */
-  private static void putIntoCWD(List<String> fileOnlyTrackedByTarget, Commit curr, Commit target)
+  private static void putIntoCWD(List<String> fileOnlyTrackedByTarget, Commit target)
       throws IOException {
 
     if (fileOnlyTrackedByTarget.isEmpty()) {
@@ -707,7 +708,7 @@ public class Gitlet {
 
     List<String> fileOnlyTrackedByReset = findFileOnlyTrackedByTarget(currCommit,resetTarget);
     //This method considered the untracked files error
-    putIntoCWD(fileOnlyTrackedByReset, currCommit, resetTarget);
+    putIntoCWD(fileOnlyTrackedByReset, resetTarget);
 
     //moving the current branch points to the reset target commit.
     currBranch = readCurrBranch();  //refs/heads/master
@@ -726,7 +727,6 @@ public class Gitlet {
 
   }
 
-
   /** Helper method, check whether the commit exists with that commitID. */
   private static void checkCommitExists(String commitID) {
     List<String> commitList = Utils.plainFilenamesIn(commits);
@@ -737,6 +737,274 @@ public class Gitlet {
   }
 
 
-  
+  /** Merge command, merge files from the given branch to the current branch. */
+  public static void merge(String givenBranch) throws IOException {
+    Stage stage = readObject(STAGES_FILE, Stage.class);
+    if (!stage.getAddStage().isEmpty() || !stage.getRemoveStage().isEmpty()) {
+      System.out.println("You have uncommitted changes.");
+      System.exit(0);
+    }
+
+    checkWhetherBranchExists(givenBranch);
+    currBranch = readCurrBranch();
+    if (currBranch.equals(givenBranch)) {
+      System.out.println("Cannot merge a branch with itself.");
+      System.exit(0);
+    }
+
+    currCommit = retrieveCurrentCommit();
+    for (String fileInCWD :
+        Objects.requireNonNull(plainFilenamesIn(CWD))) {
+      if (!currCommit.getTracked().containsKey(fileInCWD)){
+        if (!stage.getAddStage().containsKey(fileInCWD)){
+          message("There is an untracked file in the way; delete it, or add and commit it first.");
+          System.exit(0);
+        }
+      }
+      if (stage.getRemoveStage().contains(fileInCWD)){
+        message("There is an untracked file in the way; delete it, or add and commit it first.");
+        System.exit(0);
+      }
+    }
+
+    String message = "Merged " + givenBranch + " into " + currBranch + ".";
+    File givenBranchPoint = Utils.join(heads, givenBranch);
+    String givenBranchHash = Utils.readContentsAsString(givenBranchPoint);
+
+    Commit givenBranchCommit = retrieveCommit(givenBranchHash);  //commit pointed by branchName
+    Commit splitCommit = findSplitCommit(currCommit, givenBranchCommit);
+
+    checkWhetherMergeFinished(splitCommit, givenBranchCommit);
+    checkWhetherFastForward(splitCommit, currCommit, givenBranch);
+
+    Map<String, String> splitMap = getCommitMap(splitCommit);
+    Map<String, String> currentCommitMap = getCommitMap(currCommit);
+    Map<String, String> givenCommitMap = getCommitMap(givenBranchCommit);
+
+    //put master commit into merge commit temporary, then check whether the blob need to be changed or delete
+    Commit mergeCommit = new Commit(message, currCommit.getSha1(), givenBranchCommit.getSha1());  //currCommit;
+    mergeCommit.setTracked(currCommit.getTracked());
+
+    for (String id: splitMap.keySet()) {
+      if (currentCommitMap.containsKey(id) && !givenCommitMap.containsKey(id)) {   ///
+        String modifiedFileName = currentCommitMap.get(id);
+        //merge case 1, if files modified in given branch after split point, but not modified in
+        //current branch, keep the modified version, and staged for addition.
+        if (givenCommitMap.containsValue(modifiedFileName)) {
+          mergeCommit.getTracked().remove(id);
+          for (String s : givenCommitMap.keySet()) {
+            if (givenCommitMap.get(s).equals(modifiedFileName)) {
+              mergeCommit.addTracked(modifiedFileName, s);
+              stage.stageForAddition(modifiedFileName, s);
+              List<String> overWriteFile = new ArrayList<>();
+              overWriteFile.add(givenCommitMap.get(s));
+              compareTrackedFiles(overWriteFile, mergeCommit, givenBranchCommit);
+            }
+          }
+        }
+        //merge case 6, files present in split, unmodified in current branch, removed in the given branch,
+        //should be removed and untracked.
+        else {
+          stage.stageForRemoval(modifiedFileName);
+          stage.save();
+          File fileInCWD = Utils.join(CWD, modifiedFileName);
+          Utils.restrictedDelete(fileInCWD);
+          updateStageForRemovalToCommit(mergeCommit);
+        }
+      }   ///
+
+      //merge case 2, files being modified in current branch, but not in given branch, keep the file
+      //merge case 7, files present in split, unmodified in given branch, removed in current branch, should remain absent.
+      else if (!currentCommitMap.containsKey(id) && givenCommitMap.containsKey(id)) {
+        continue;
+      }
+
+      //merge case 3, file being modified in both current and given branch
+      else if (!currentCommitMap.containsKey(id) && !givenCommitMap.containsKey(id)) {
+        //if they are modified in the same way, do nothing
+
+        //Merge case 8, otherwise, there is a conflict. Need to deal with the conflict here.
+        String filename = splitMap.get(id);
+        if (currentCommitMap.containsValue(filename) || givenCommitMap.containsValue(filename)) {
+          String cHash = "";
+          String gHash = "";
+          for (String s: currentCommitMap.keySet()) {
+            if (currentCommitMap.get(s).equals(filename)) {
+              cHash = s;
+            }
+          }
+          for (String g: givenCommitMap.keySet()) {
+            if (givenCommitMap.get(g).equals(filename)) {
+              gHash = g;
+            }
+          }
+          //file changed in different way, or contents of one are changed and others are deleted.
+          if (!cHash.equals(gHash)) {
+            String currBranchContents = "";
+            String givenBranchContents = "";
+
+            if (!cHash.isEmpty()) {
+              File currBlob = Utils.join(blobs, cHash);
+              Blob currB = readObject(currBlob, Blob.class);
+              currBranchContents = new String(currB.getContents(), StandardCharsets.UTF_8);
+            }
+            if (!gHash.isEmpty()) {
+              File givenBlob = Utils.join(blobs, gHash);
+              Blob givenB = Utils.readObject(givenBlob, Blob.class);
+              givenBranchContents = new String(givenB.getContents(), StandardCharsets.UTF_8);
+            }
+            String conflictContents = "<<<<<<< HEAD\n" + currBranchContents + "=======\n" + givenBranchContents + ">>>>>>>\n";
+            File conflictFile = join(CWD, filename);
+            Utils.writeContents(conflictFile, conflictContents);
+            System.out.println("Encountered a merge conflict.");
+          }
+        }
+      }
+    }
+
+
+    //merge case 4, files not present at split point, but only presented in current branch. Keep them, nothing we need to do here.
+    //Conflict merge case 8, file not exist in split but has different contents in current commit and given branch commit.
+    for (String s: currentCommitMap.keySet()) {
+      if (!splitMap.containsKey(s) && !givenCommitMap.containsKey(s)) {
+        String filename = currentCommitMap.get(s);
+        checkIfConflict(filename, currCommit, givenBranchCommit);
+        continue;
+      }
+    }
+
+    //merge case 5, files not present at split point, only presented in given branch. Checked out and staged.
+    //Conflict merge case 8, file not exist in split but has different contents in current commit and given branch commit.
+    for (String s: givenCommitMap.keySet()) {
+      if (!splitMap.containsKey(s) && !currentCommitMap.containsKey(s)) {
+        String filename = givenCommitMap.get(s);
+        checkIfConflict(filename, currCommit, givenBranchCommit);
+        List<String> file = new ArrayList<>();
+        file.add(filename);
+        putIntoCWD(file, givenBranchCommit);
+        stage.stageForAddition(filename, s);
+      }
+    }
+
+    submitCommit(mergeCommit, currBranch);
+  }
+
+
+  /** Helper method, find the split commit for the two branch, for the further merge.
+   * Using bfs, traverse both commit until reaches the init commit. */
+  private static Commit findSplitCommit(Commit headC, Commit branchC) {
+    Map<String, Integer> headCMap = new HashMap<>();
+    int i=1;
+    Commit iter = headC;
+    while (!iter.getParent().isEmpty()) {
+      String hash = iter.getSha1();
+      headCMap.put(hash, i);
+      i++;
+      iter = retrieveCommit(iter.getParent());
+    }
+
+    Map<String, Integer> branchCMap = new HashMap<>();
+    Commit iterator = branchC;
+    while (!iterator.getParent().isEmpty()) {
+      String hash = iterator.getSha1();
+      branchCMap.put(hash, i);
+      i++;
+      iterator = retrieveCommit(iterator.getParent());
+    }
+
+    int depth = MAX_VALUE;
+    String tmp = "";
+    for (String commitID: branchCMap.keySet()) {
+      if (headCMap.containsKey(commitID)) {
+        if (depth > headCMap.get(commitID)) {
+          tmp = commitID;
+          depth = headCMap.get(commitID);
+        }
+      }
+    }
+
+    Commit splitCommit = retrieveCommit(tmp);
+    return splitCommit;
+  }
+
+  /** Helper method, check whether the merge is finished, meaning that split commit
+   * is the same commit as the given branch.*/
+  private static void checkWhetherMergeFinished(Commit split, Commit branchC) {
+    if (split.getSha1().equals(branchC.getSha1())) {
+      System.out.println("Given branch is an ancestor of the current branch.");
+      System.exit(0);
+    }
+  }
+
+  /** Helper method, check whether it is fast forwarded. In this case, the split commit
+   * is the current branch, Then we check out the given branch.
+   * If it is, update the HEAD and show the fast-forward message.*/
+  private static void checkWhetherFastForward(Commit splitCommit, Commit HEADCommit, String branchName)
+      throws IOException {
+    if (splitCommit.getSha1().equals(HEADCommit.getSha1())) {
+      System.out.println("Current branch fast-forwarded.");
+      //update the file in CWD, move HEAD point to the branch pointed commit.
+      checkoutBranch(branchName);
+    }
+  }
+
+  /** Helper method, create a map of specific commit, key is the commitID, value
+   * is the filename. */
+  private static Map<String,String> getCommitMap(Commit commit) {
+    Map<String, String> commitMap = new HashMap<>();
+    if (commit.getTracked().isEmpty()) {
+      return commitMap;
+    }
+    for (String key: commit.getTracked().keySet()) {
+      commitMap.put(commit.getTracked().get(key), key);
+    }
+    return commitMap;
+  }
+
+
+  /** Helper method, check whether there is a conflict, if file doesn't exist in split but has
+   * different contents in current commit and given branch commit.*/
+  private static void checkIfConflict(String filename, Commit cCommit, Commit givenCommit) {
+    boolean conflict = false;
+    //key is the blob id, value is the filename;
+    Map<String, String> currCommitMap = getCommitMap(cCommit);
+    Map<String, String> givenCommitMap = getCommitMap(givenCommit);
+    String currBlobID = "";
+    String givenBlobID = "";
+    if (currCommitMap.containsValue(filename) && givenCommitMap.containsValue(filename)) {
+      for (String s: currCommitMap.keySet()) {
+        if (currCommitMap.get(s).equals(filename)) {
+          currBlobID = s;
+        }
+      }
+      for (String g: givenCommitMap.keySet()) {
+        if (givenCommitMap.get(g).equals(filename)) {
+          givenBlobID = g;
+        }
+      }
+      if (! currBlobID.equals(givenBlobID)) {
+        conflict = true;
+      }
+    }
+
+    if (conflict) {
+      String currBranchContents = "";
+      String givenBranchContents = "";
+      if (!currBlobID.isEmpty()) {
+        File currBlob = Utils.join(blobs, currBlobID);
+        Blob currB = readObject(currBlob, Blob.class);
+        currBranchContents = new String(currB.getContents(), StandardCharsets.UTF_8);
+      }
+      if (!givenBlobID.isEmpty()) {
+        File givenBlob = Utils.join(blobs, givenBlobID);
+        Blob givenB = Utils.readObject(givenBlob, Blob.class);
+        givenBranchContents = new String(givenB.getContents(), StandardCharsets.UTF_8);
+      }
+      String conflictContents = "<<<<<<< HEAD\n" + currBranchContents + "=======\n" + givenBranchContents + ">>>>>>>\n";
+      File conflictFile = join(CWD, filename);
+      Utils.writeContents(conflictFile, conflictContents);
+      System.out.println("Encountered a merge conflict.");
+    }
+  }
 
 }

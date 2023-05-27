@@ -30,7 +30,7 @@ public class Stage implements Serializable {
 
 
     /** the blob with the same name, but change the content, so when stage for addition,
-     * add stage part need to be update blob's info*/
+     * add stage part need to be update blob's info. */
     public void stageForAdditionUpdateBlob(String file, String blobID) {
         addStage.put(file, blobID);
     }
