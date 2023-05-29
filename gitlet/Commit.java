@@ -43,7 +43,7 @@ public class Commit implements Serializable {
     private String parent; //the file name where the commit object can be found, in this case is the sha1 of the parent commit
 
     /** the second parent, used in merge. */
-    private String second_parent;
+    private String second_parent = "";
 
     /**the SHA1 for each commit object*/
     private String sha1;

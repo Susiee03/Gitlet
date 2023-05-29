@@ -205,7 +205,6 @@ public class Gitlet {
 
     //save the stage
     stage.save();
-
   }
 
   /**
@@ -234,7 +233,6 @@ public class Gitlet {
     }
   }
 
-
   /** Submit the commit into the current branch, add the commit under the object folder, and
    * make the HEAD points to the latest commit. */
   private static void submitCommit(Commit commit, String branch) throws IOException {
@@ -248,7 +246,6 @@ public class Gitlet {
     File headsFile = join(GITLET_DIR, branch);
     headsFile.createNewFile();
     Utils.writeContents(headsFile, commitSha1);
-
   }
 
 
@@ -291,13 +288,11 @@ public class Gitlet {
 
   /** Log command. List the commit information. Until it reaches the init commit.  */
   public static void log() {
-
     currCommit = retrieveCurrentCommit();
     Commit commitIterator = currCommit;
 
     while(!commitIterator.getParent().equals("")) {
       logPrint(commitIterator);
-
       commitIterator = retrieveCommit(commitIterator.getParent());
     }
     System.out.println("===");
@@ -305,7 +300,6 @@ public class Gitlet {
     System.out.println("Date: " + commitIterator.getTimestamp());
     System.out.println(commitIterator.getMessage() + "\n");
 
-    //TODO: doesn't consider the merge case, will figure it out later. The info is different.
   }
 
 
@@ -313,6 +307,9 @@ public class Gitlet {
   private static void logPrint(Commit commit) {
     System.out.println("===");
     System.out.println("commit "  + commit.getSha1());
+    if (!commit.getSecond_parent().isEmpty()) {
+      System.out.println("Merge: " + commit.getParent().substring(0,6) + " " + commit.getSecond_parent().substring(0,6));
+    }
     System.out.println("Date: " + commit.getTimestamp());
     System.out.println(commit.getMessage() + "\n");
   }
@@ -325,7 +322,6 @@ public class Gitlet {
       Commit currCommit = retrieveCommit(sha1);
       logPrint(currCommit);
     }
-    //TODO: didn't consider merge
   }
 
   /** Prints out the ids of all commits that have the given commit message, one per line.
@@ -356,13 +352,9 @@ public class Gitlet {
    * what files have been staged for addition or removal. */
   public static void status() {
     branchStatus();
-    System.out.println();
     stageStatus();
-    //TODO: extra credit, will do it later
-    System.out.println("=== Modifications Not Staged For Commit ===\n");
-
-    System.out.println("=== Untracked Files ===\n");
-
+    notStagedFileStatus();
+    untrackedStatus();
   }
 
   /** Status helper function, prints the branch status. */
@@ -381,6 +373,7 @@ public class Gitlet {
         }
       }
     }
+    System.out.println();
   }
 
 
@@ -409,7 +402,66 @@ public class Gitlet {
     }
     System.out.println();
   }
-  
+
+  /** Status helper function, prints the modification files in CWD, but not staged for commit.
+   * Modified in CWD but not use add command,  */
+  private static void notStagedFileStatus() {
+    System.out.println("=== Modifications Not Staged For Commit ===");
+    Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
+    currCommit = retrieveCurrentCommit();
+    List<String> fileInCWD = Utils.plainFilenamesIn(CWD);
+    Map<String, String> trackedByCommit = currCommit.getTracked();
+    Map<String, String> trackedByAddStage= stage.getAddStage();
+    List<String> trackedByRemovedStage = stage.getRemoveStage();
+
+
+    for (String file: fileInCWD) {
+      Blob blob = new Blob (Utils.join(CWD, file));
+
+      //tracked by current commit, changed in CWD, but not staged.
+      if (trackedByCommit.containsKey(file)) {
+        if (!trackedByAddStage.containsKey(file) && !trackedByCommit.get(file).equals(blob.getHash())) {
+          System.out.println(file + " (modified)");
+        }
+      }
+
+      //staged for addition, but with different contents than in CWD
+      if (trackedByAddStage.containsKey(file) && !trackedByAddStage.get(file).equals(blob.getHash())) {
+        System.out.println(file + " (modified)");
+      }
+    }
+
+    //staged for addition, but delete in CWD
+    for (String file: trackedByAddStage.keySet()) {
+      if (!fileInCWD.contains(file)) {
+        System.out.println(file + " (deleted)");
+      }
+    }
+
+    //not staged for removal, but tracked in current commit and delete from CWD
+    for (String file: trackedByCommit.keySet()) {
+      if (!trackedByRemovedStage.contains(file) && !fileInCWD.contains(file)) {
+        System.out.println(file + " (deleted)");
+      }
+    }
+    System.out.println();
+  }
+
+
+  /** Status helper function, prints the untracked status. */
+  private static void untrackedStatus() {
+    System.out.println("=== Untracked Files ===");
+    Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
+    currCommit = retrieveCurrentCommit();
+    List<String> fileInCWD = Utils.plainFilenamesIn(CWD);
+    for (String file: fileInCWD) {
+      if (!currCommit.getTracked().containsKey(file) && !stage.getRemoveStage().contains(file)
+          && !stage.getAddStage().containsKey(file)) {
+        System.out.println(file);
+      }
+    }
+    System.out.println();
+  }
 
 
   /** First case of checkout. Takes the version of the file as it exists in the head commit and
@@ -456,7 +508,6 @@ public class Gitlet {
 
     if (currCommit.getSha1().equals(commitID)) {
       checkoutHelper(filename, currCommit);
-
     }
 
     else {
@@ -514,7 +565,6 @@ public class Gitlet {
     Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
     stage.clear();
     stage.save();
-
   }
 
   /** Helper method, check whether the checkout branch is the current branch. */
@@ -647,7 +697,6 @@ public class Gitlet {
     currCommit = retrieveCurrentCommit();
     String commitSha1 = currCommit.getSha1();
     Utils.writeContents(newBranch, commitSha1);
-
   }
 
   /** Helper method, check whether the branch is already exists in .gitlet. */
@@ -675,7 +724,6 @@ public class Gitlet {
 
     File deleteBranch = Utils.join(heads, branchName);
     deleteBranch.delete(); //Utils.restrictDelete mainly used to delete CWD files.
-
   }
 
 
@@ -725,7 +773,6 @@ public class Gitlet {
     Stage stage = Utils.readObject(STAGES_FILE, Stage.class);
     stage.clear();
     stage.save();
-
   }
 
   /** Helper method, check whether the commit exists with that commitID. */
@@ -826,7 +873,7 @@ public class Gitlet {
 
         //Merge case 8, otherwise, there is a conflict. Need to deal with the conflict here.
         String filename = splitMap.get(id);
-        checkIfConflict(filename, currCommit, givenBranchCommit);
+        checkIfConflict(filename, currCommit, givenBranchCommit, stage);
       }
     }
 
@@ -841,7 +888,7 @@ public class Gitlet {
           continue;
         }
         else if (!splitMap.containsValue(filename) && givenCommitMap.containsValue(filename)) {
-          checkIfConflict(filename, currCommit, givenBranchCommit);
+          checkIfConflict(filename, currCommit, givenBranchCommit, stage);
         }
       }
     }
@@ -860,7 +907,7 @@ public class Gitlet {
           stage.save();
         }
         else if (!splitMap.containsValue(filename) && currentCommitMap.containsValue(filename)){
-          checkIfConflict(filename, currCommit, givenBranchCommit);
+          checkIfConflict(filename, currCommit, givenBranchCommit, stage);
         }
       }
     }
@@ -968,7 +1015,7 @@ public class Gitlet {
 
   /** Helper method, check whether there is a conflict, if file doesn't exist in split but has
    * different contents in current commit and given branch commit.*/
-  private static void checkIfConflict(String filename, Commit cCommit, Commit givenCommit)
+  private static void checkIfConflict(String filename, Commit cCommit, Commit givenCommit, Stage stage)
       throws IOException {
     boolean conflict = false;
     //key is the blob id, value is the filename;
@@ -1023,6 +1070,11 @@ public class Gitlet {
       File conflictFile = join(CWD, filename);
       conflictFile.createNewFile();
       Utils.writeContents(conflictFile, conflictContents);
+
+      //stage the result
+      Blob b = new Blob(conflictFile);
+      stage.stageForAddition(filename, b.getHash());
+      stage.save();
       System.out.println("Encountered a merge conflict.");
     }
   }

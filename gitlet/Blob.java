@@ -10,15 +10,12 @@ public class Blob implements Serializable{
     private String hash; //blobID
     private byte[] fileContents; //contents stored in blob
     private File filename;  //the file in working directory
-    private final String WorkingDirectoryFilePath; //file path in working directory, created by user
-
     private File blobFileName;   // the blob file stored under object directory
 
     public Blob(File filename) {
         this.filename = filename;
         fileContents = Utils.readContents(filename);
         hash = generateHash();
-        WorkingDirectoryFilePath = filename.getPath();
         blobFileName = Utils.join(Repository.blobs, hash);
 
     }

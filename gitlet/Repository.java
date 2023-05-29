@@ -16,7 +16,6 @@ import static gitlet.Utils.*;
  */
 public class Repository {
     /**
-     * TODO: add instance variables here.
      * List all instance variables of the Repository class here with a useful
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided two examples for you.
@@ -47,7 +46,6 @@ public class Repository {
     public static final File HEAD= join(GITLET_DIR, "HEAD");
     public static final File STAGES_FILE = join(GITLET_DIR, "stages");
 
-    /* TODO: fill in the rest of this class. */
 
     /**set up the gitlet structure, based on design and real git structure*/
     public static void setUp() throws IOException{
