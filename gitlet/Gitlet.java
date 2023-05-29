@@ -15,8 +15,8 @@ import java.util.Objects;
 
 public class Gitlet {
   /**
-   * all the gitlet related command will be put in this class, the fields are files and directories
-   * constructed in Repository class
+   * All the gitlet related command will be put in this class, the fields are files and directories
+   * constructed in Repository class.
    */
   static File CWD = Repository.CWD;
   static File GITLET_DIR = Repository.GITLET_DIR;
@@ -35,7 +35,7 @@ public class Gitlet {
   public static Commit currCommit;
 
   /**
-   * the current branch in gitlet
+   * The current branch in gitlet.
    */
   public static String currBranch;
 
@@ -320,13 +320,12 @@ public class Gitlet {
   /** Like log, except displays information about all commits ever made. The order of the commits
    * does not matter.*/
   public static void global_log() {
-
     List<String> commitRecord = Utils.plainFilenamesIn(commits);
     for (String sha1: commitRecord) {
       Commit currCommit = retrieveCommit(sha1);
       logPrint(currCommit);
     }
-    //TODO: didn't consider the merge situation. will modify this part later
+    //TODO: didn't consider merge
   }
 
   /** Prints out the ids of all commits that have the given commit message, one per line.
@@ -410,6 +409,7 @@ public class Gitlet {
     }
     System.out.println();
   }
+  
 
 
   /** First case of checkout. Takes the version of the file as it exists in the head commit and
@@ -507,7 +507,7 @@ public class Gitlet {
     }
 
     //file only tracked by target commit, not current commit.
-    List<String> fileOnlyTrackedByTarget = findFileOnlyTrackedByTarget(currCommit, target);
+    List<String> fileOnlyTrackedByTarget = findFileOnlyTrackedByTarget(currCommit, target); //
     putIntoCWD(fileOnlyTrackedByTarget, target);
 
     //clear the stages
@@ -574,6 +574,7 @@ public class Gitlet {
       for (String file: commit.getTracked().keySet()){
         fileTrackedOnlyByTarget.add(file);
       }
+      return fileTrackedOnlyByTarget;
     }
 
     for (String file: commit.getTracked().keySet()) {
@@ -747,7 +748,8 @@ public class Gitlet {
 
     checkWhetherBranchExists(givenBranch);
     currBranch = readCurrBranch();
-    if (currBranch.equals(givenBranch)) {
+    String cBranch = currBranch.substring(currBranch.lastIndexOf("\\")+1);
+    if (cBranch.equals(givenBranch)) {
       System.out.println("Cannot merge a branch with itself.");
       System.exit(0);
     }
@@ -767,7 +769,7 @@ public class Gitlet {
       }
     }
 
-    String message = "Merged " + givenBranch + " into " + currBranch + ".";
+    String message = "Merged " + givenBranch + " into " + cBranch + ".";
     File givenBranchPoint = Utils.join(heads, givenBranch);
     String givenBranchHash = Utils.readContentsAsString(givenBranchPoint);
 
@@ -786,7 +788,7 @@ public class Gitlet {
     mergeCommit.setTracked(currCommit.getTracked());
 
     for (String id: splitMap.keySet()) {
-      if (currentCommitMap.containsKey(id) && !givenCommitMap.containsKey(id)) {   ///
+      if (currentCommitMap.containsKey(id) && !givenCommitMap.containsKey(id)) {
         String modifiedFileName = currentCommitMap.get(id);
         //merge case 1, if files modified in given branch after split point, but not modified in
         //current branch, keep the modified version, and staged for addition.
@@ -809,9 +811,8 @@ public class Gitlet {
           stage.save();
           File fileInCWD = Utils.join(CWD, modifiedFileName);
           Utils.restrictedDelete(fileInCWD);
-          updateStageForRemovalToCommit(mergeCommit);
         }
-      }   ///
+      }
 
       //merge case 2, files being modified in current branch, but not in given branch, keep the file
       //merge case 7, files present in split, unmodified in given branch, removed in current branch, should remain absent.
@@ -825,68 +826,55 @@ public class Gitlet {
 
         //Merge case 8, otherwise, there is a conflict. Need to deal with the conflict here.
         String filename = splitMap.get(id);
-        if (currentCommitMap.containsValue(filename) || givenCommitMap.containsValue(filename)) {
-          String cHash = "";
-          String gHash = "";
-          for (String s: currentCommitMap.keySet()) {
-            if (currentCommitMap.get(s).equals(filename)) {
-              cHash = s;
-            }
-          }
-          for (String g: givenCommitMap.keySet()) {
-            if (givenCommitMap.get(g).equals(filename)) {
-              gHash = g;
-            }
-          }
-          //file changed in different way, or contents of one are changed and others are deleted.
-          if (!cHash.equals(gHash)) {
-            String currBranchContents = "";
-            String givenBranchContents = "";
-
-            if (!cHash.isEmpty()) {
-              File currBlob = Utils.join(blobs, cHash);
-              Blob currB = readObject(currBlob, Blob.class);
-              currBranchContents = new String(currB.getContents(), StandardCharsets.UTF_8);
-            }
-            if (!gHash.isEmpty()) {
-              File givenBlob = Utils.join(blobs, gHash);
-              Blob givenB = Utils.readObject(givenBlob, Blob.class);
-              givenBranchContents = new String(givenB.getContents(), StandardCharsets.UTF_8);
-            }
-            String conflictContents = "<<<<<<< HEAD\n" + currBranchContents + "=======\n" + givenBranchContents + ">>>>>>>\n";
-            File conflictFile = join(CWD, filename);
-            Utils.writeContents(conflictFile, conflictContents);
-            System.out.println("Encountered a merge conflict.");
-          }
-        }
+        checkIfConflict(filename, currCommit, givenBranchCommit);
       }
     }
 
-
     //merge case 4, files not present at split point, but only presented in current branch. Keep them, nothing we need to do here.
     //Conflict merge case 8, file not exist in split but has different contents in current commit and given branch commit.
+    removeRepeated(splitMap,currentCommitMap);
+    removeRepeated(splitMap,givenCommitMap);
     for (String s: currentCommitMap.keySet()) {
       if (!splitMap.containsKey(s) && !givenCommitMap.containsKey(s)) {
         String filename = currentCommitMap.get(s);
-        checkIfConflict(filename, currCommit, givenBranchCommit);
-        continue;
+        if (!splitMap.containsValue(filename) && !givenCommitMap.containsValue(filename)) {
+          continue;
+        }
+        else if (!splitMap.containsValue(filename) && givenCommitMap.containsValue(filename)) {
+          checkIfConflict(filename, currCommit, givenBranchCommit);
+        }
       }
     }
 
     //merge case 5, files not present at split point, only presented in given branch. Checked out and staged.
     //Conflict merge case 8, file not exist in split but has different contents in current commit and given branch commit.
+    removeRepeated(currentCommitMap, givenCommitMap);
     for (String s: givenCommitMap.keySet()) {
       if (!splitMap.containsKey(s) && !currentCommitMap.containsKey(s)) {
         String filename = givenCommitMap.get(s);
-        checkIfConflict(filename, currCommit, givenBranchCommit);
-        List<String> file = new ArrayList<>();
-        file.add(filename);
-        putIntoCWD(file, givenBranchCommit);
-        stage.stageForAddition(filename, s);
+        if (!splitMap.containsValue(filename) && !currentCommitMap.containsValue(filename)) {
+          List<String> file = new ArrayList<>();
+          file.add(filename);
+          putIntoCWD(file, givenBranchCommit);
+          stage.stageForAddition(filename, s);
+          stage.save();
+        }
+        else if (!splitMap.containsValue(filename) && currentCommitMap.containsValue(filename)){
+          checkIfConflict(filename, currCommit, givenBranchCommit);
+        }
       }
     }
 
+    //tracked the file in stage for addition, and untracked the file in stage for removal
+    updateStageToCommit(mergeCommit);
+    updateStageForRemovalToCommit(mergeCommit);
+
+    //submit the merge commit and clear the stage.
     submitCommit(mergeCommit, currBranch);
+    stage.clear();
+    stage.save();
+
+
   }
 
 
@@ -896,21 +884,38 @@ public class Gitlet {
     Map<String, Integer> headCMap = new HashMap<>();
     int i=1;
     Commit iter = headC;
+    Commit iter2 = headC;
     while (!iter.getParent().isEmpty()) {
       String hash = iter.getSha1();
       headCMap.put(hash, i);
       i++;
+      if (!iter2.getSecond_parent().isEmpty()) {
+        String hash2 = iter2.getSecond_parent();
+        headCMap.put(hash2, i);
+        i++;
+        iter2 = retrieveCommit(iter2.getSecond_parent());
+      }
       iter = retrieveCommit(iter.getParent());
     }
+    headCMap.put(iter.getSha1(), i);
 
     Map<String, Integer> branchCMap = new HashMap<>();
+    int j=1;
     Commit iterator = branchC;
+    Commit iterator2 = branchC;
     while (!iterator.getParent().isEmpty()) {
       String hash = iterator.getSha1();
-      branchCMap.put(hash, i);
-      i++;
+      branchCMap.put(hash, j);
+      j++;
+      if (!iterator2.getSecond_parent().isEmpty()) {
+        String hash2 = iterator2.getSecond_parent();
+        headCMap.put(hash2, j);
+        j++;
+        iterator2 = retrieveCommit(iterator2.getSecond_parent());
+      }
       iterator = retrieveCommit(iterator.getParent());
     }
+    branchCMap.put(iterator.getSha1(), j);
 
     int depth = MAX_VALUE;
     String tmp = "";
@@ -922,7 +927,6 @@ public class Gitlet {
         }
       }
     }
-
     Commit splitCommit = retrieveCommit(tmp);
     return splitCommit;
   }
@@ -964,27 +968,42 @@ public class Gitlet {
 
   /** Helper method, check whether there is a conflict, if file doesn't exist in split but has
    * different contents in current commit and given branch commit.*/
-  private static void checkIfConflict(String filename, Commit cCommit, Commit givenCommit) {
+  private static void checkIfConflict(String filename, Commit cCommit, Commit givenCommit)
+      throws IOException {
     boolean conflict = false;
     //key is the blob id, value is the filename;
     Map<String, String> currCommitMap = getCommitMap(cCommit);
     Map<String, String> givenCommitMap = getCommitMap(givenCommit);
     String currBlobID = "";
     String givenBlobID = "";
+    for (String s: currCommitMap.keySet()) {
+      if (currCommitMap.get(s).equals(filename)) {
+        currBlobID = s;
+      }
+    }
+    for (String g: givenCommitMap.keySet()) {
+      if (givenCommitMap.get(g).equals(filename)) {
+        givenBlobID = g;
+      }
+    }
+
+    //both current commit and given commit track the file with same name, need to check
+    //whether the contents is the same as well.
     if (currCommitMap.containsValue(filename) && givenCommitMap.containsValue(filename)) {
-      for (String s: currCommitMap.keySet()) {
-        if (currCommitMap.get(s).equals(filename)) {
-          currBlobID = s;
-        }
-      }
-      for (String g: givenCommitMap.keySet()) {
-        if (givenCommitMap.get(g).equals(filename)) {
-          givenBlobID = g;
-        }
-      }
-      if (! currBlobID.equals(givenBlobID)) {
+      if (!currBlobID.equals(givenBlobID)) {
         conflict = true;
       }
+    }
+
+    //file exists in split commit, but delete in both current commit and given commit.
+    else if (!currCommitMap.containsValue(filename) && !givenCommitMap.containsValue(filename)){
+      conflict = false;
+    }
+
+    //file exists split commit, tracked by current commit and untracked by given commit, or untracked by current commit
+    // and tracked by given commit. Conflict.
+    else {
+      conflict = true;
     }
 
     if (conflict) {
@@ -1002,8 +1021,19 @@ public class Gitlet {
       }
       String conflictContents = "<<<<<<< HEAD\n" + currBranchContents + "=======\n" + givenBranchContents + ">>>>>>>\n";
       File conflictFile = join(CWD, filename);
+      conflictFile.createNewFile();
       Utils.writeContents(conflictFile, conflictContents);
       System.out.println("Encountered a merge conflict.");
+    }
+  }
+
+  /** Helper function, removed the already considered file in split commit map, and only
+   * consider the remained file tracked in currMap or givenMap. */
+  private static void removeRepeated(Map<String, String> splitMap, Map<String, String> otherMap){
+    for (String key: splitMap.keySet()) {
+      if (otherMap.containsKey(key)) {
+        otherMap.remove(key);
+      }
     }
   }
 

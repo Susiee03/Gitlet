@@ -118,12 +118,17 @@ public class Commit implements Serializable {
         tracked.remove(blobFileName);
     }
 
-    /** get the parent of commit*/
+    /** Get the parent of commit.*/
     public String getParent(){
         return parent;
     }
 
-    /** get the time stamp in string*/
+    /** Get the second parent of commit, used in merge. */
+    public String getSecond_parent() {
+        return second_parent;
+    }
+
+    /** Get the time stamp in string. */
     public String getTimestamp() {
         return timestamp;
     }

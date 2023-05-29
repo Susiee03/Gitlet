@@ -7,7 +7,7 @@ import java.io.IOException;
 
 /** Driver class for Gitlet, a subset of the Git version-control system.
  *  mostly be calling helper methods in the Repository class.
- *  @author Shuyao YU
+ *  @author Susie
  */
 public class Main {
 
@@ -16,7 +16,6 @@ public class Main {
      *  java gitlet.Main add file
      */
     public static void main(String[] args) throws IOException {
-        // TODO: what if args is empty?
         if (args.length == 0) {
             System.out.println("Please enter a command.");
             System.exit(0);
@@ -24,13 +23,10 @@ public class Main {
 
         String firstArg = args[0];
         switch(firstArg) {
-            /**get the current working directory*/
             case "init":
-                // TODO: handle the `init` command
                 Gitlet.init();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
                 if (args.length < 2) {
                     throw error("Please enter a add file message.");
                 }
