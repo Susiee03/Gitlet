@@ -119,7 +119,6 @@ public class Main {
                 Gitlet.merge(args[1]);
                 break;
         }
-
     }
 
 
