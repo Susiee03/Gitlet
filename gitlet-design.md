@@ -3,7 +3,8 @@
 **Name**: Susie
 
 ## Classes and Data Structures
-<!-- where is the image? I recommend to organize the images in your repo in `./imgs/1.png` or `./docs/imgs/1.png` if `.` (current directory) has too many images. -->
+* The basic structure of .git . Learned the information stored in different files. Screenshot from helper video.
+
 ![img_1.png](img_1.png)
 <<<<<<< HEAD
 * .gitlet/
@@ -24,7 +25,7 @@ ref: https://sp21.datastructur.es/materials/proj/proj2/proj2#understanding-integ
 ```
 .
 ├── .gitlet
-│   ├── HEAD                      <==== a pointer
+│   ├── HEAD                      <==== a pointer stores a path to tell git where is the HEAD commit
 │   ├── objects
 │   │   ├── blob
 │   │   └── commits
@@ -39,11 +40,11 @@ ref: https://sp21.datastructur.es/materials/proj/proj2/proj2#understanding-integ
 ```
 
 <!-- use `` to wrap any thing you think it has something to do with code or CLI (Command Line Interface). -->
-- `HEAD`: stores a path to tell git where is the HEAD commit
+
 >>>>>>> 1169f9aeb83e190567c284318edcb3273729ffdc
 
 ### Class 1: Repository
-ensure the structure of gitlet, and created the persistence.
+Ensure the structure of gitlet, and created the persistence.
 
 #### Fields
 
@@ -57,7 +58,7 @@ file.
 
 ### Class 2: Gitlet
 <!-- nit: no point to put two // here -->
-wrap all the gitlet command into this class.
+Wrap all the gitlet command into this class. Consists of all basic gitlet command methods. 
 #### Fields:
 1. files and directory from the Repository class
 2. currBranch record the current branch of gitlet command
@@ -70,27 +71,23 @@ wrap all the gitlet command into this class.
 ![img_3.png](img_3.png)
 
 2. `add(String filename)` - needs blobs, add stages, be careful about the rm.  
-* only one file may be added at one time.
+* Constraint: only one file may be added at one time.
 <!-- double space (`  `) and `-`/`*` to create a sublist, if you don't want a sublist, remove all sapces-->
 <!-- recommend: https://stackoverflow.com/questions/30140595/show-whitespace-characters-in-visual-studio-code -->
-  * make sure the added file being staged for addition
+* Make sure the added file being staged for addition, so the stage class should be included in this command.
 ![img_4.png](img_4.png)
 
-
-3.  `commit(String message)` - clone the parent commit, then put add stage area's tracked file
+3.  `commit(String message)` - first clone the parent commit, then put add stage area's tracked file
  into commit or removed the tracked file in remove stage area. After commit, clear the stage area.
 
 ![img.png](img.png)
 <!-- opinion: blockquote (`>`), instead of `//` is a better option if you really want to indicate this line is special. E.g., explain the original reference-->
 > learnt from the helper video.
-
-* feel free to add the helper function. 
-
+* feel free to add the helper function. When implementing add and commit method, try to increase the code usage.
 
 4. `rm (String filename)` - 3 different cases, unstage the file if it is currently in staged for addition. If the file is
-tracked in current commit, stage it for removal and remove it in CWD
-
-5. `log()` - show the information of commit
+tracked in current commit, stage it for removal and remove it in CWD. 
+5. `log()` - show the information of commit.
 6. `global_log()` - similar to log method, but doesn't care about the order of commit.
 7. `status()` - show the four gitlet area's information. 
 8. `checkout()` - 3 different cases, try to split each situation in different helper
@@ -106,7 +103,7 @@ debug, and created more tests after finish the method.
 
 ### Class 3: Commit 
 > learnt from the helper video, also can be used in blob class each commit has its own sha1 hashcode, and message. The merged commit has the second parent. 
-
+> The structure of commit shows in image below. 
 
 #### Fields:
 * `String message` - contains the message of the commit
@@ -115,7 +112,6 @@ debug, and created more tests after finish the method.
 * `String second_parent` - the merge commit's second parent, default to be empty. 
 * `String sha1` - the commit id
 * `File commitFileName` - the actual commit file stored under the object directory
-
 
 #### Methods:
 
@@ -140,7 +136,7 @@ After the commit command, the .gitlet looks like:
 ![img_5.png](img_5.png)
 
 ### Class 4: Blob
-> another object, the structure is similar to Commit, but 
+> Another object, the structure is similar to Commit, but 
 easier to construct. For each blob object, blob's filename is blob sha1, content is the bytes
 
 #### Fields
@@ -158,9 +154,8 @@ easier to construct. For each blob object, blob's filename is blob sha1, content
 
 
 
-
 ### Class 5: Stage
-> from the helper video and slides, after the commit, 
+> Learned from the helper video and slides, after the commit, 
 the staging area looks like:
 
 ![img_2.png](img_2.png)
@@ -182,8 +177,8 @@ the staging area looks like:
 
 
 ## Algorithms
-* BFS - implemented in merge method, for traversing the commit graph, for finding the split point.
+* BFS - implemented in merge method, for traversing the commit graph to find the split point.
 
 
 ## Persistence
-
+* All command requires the file stages or new created object to be saved. 
