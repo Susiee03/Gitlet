@@ -13,7 +13,7 @@
       - master/main  store sha1 id
       - other branches
     - remote
-  - stages/same sa index in git
+  - stages/same as index in git
   - HEAD  :a pointer, stores a path to tell git where is the HEAD commit
 
 ### Class 1: Repository
@@ -148,9 +148,9 @@ the staging area looks like:
 
 
 
-
-
 ## Algorithms
+* BFS - implemented in merge method, for traversing the commit graph, for finding the split point.
+
 
 ## Persistence
 
