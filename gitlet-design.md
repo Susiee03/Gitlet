@@ -70,29 +70,64 @@ Wrap all the gitlet command into this class. Consists of all basic gitlet comman
 <!-- opinion: images should ALWAYS be in their own paragraph. I think you notice that, if you put one line next to the one above, the two lines will be a single paragraph after rendering (vscode shortcut: ctrl+shift+v) -->
 ![img_3.png](img_3.png)
 
-2. `add(String filename)` - needs blobs, add stages, be careful about the rm.  
-* Constraint: only one file may be added at one time.
+2. `add(String filename)` - needs blobs, add stages, be careful about the rm.
 <!-- double space (`  `) and `-`/`*` to create a sublist, if you don't want a sublist, remove all sapces-->
 <!-- recommend: https://stackoverflow.com/questions/30140595/show-whitespace-characters-in-visual-studio-code -->
+* Each file in CWD should be matched with a blob. If an existing file content changed, the new blob should be generated.
 * Make sure the added file being staged for addition, so the stage class should be included in this command.
+The structure of stage class, stage for addition can try to implemented by map. 
 ![img_4.png](img_4.png)
+* Constraint: only one file may be added at one time.
 
-3.  `commit(String message)` - first clone the parent commit, then put add stage area's tracked file
+3.  `commit(String message)` - A snapshot of the file. First clone the parent commit, then put add stage area's tracked file
  into commit or removed the tracked file in remove stage area. After commit, clear the stage area.
 
 ![img.png](img.png)
 <!-- opinion: blockquote (`>`), instead of `//` is a better option if you really want to indicate this line is special. E.g., explain the original reference-->
 > learnt from the helper video.
-* feel free to add the helper function. When implementing add and commit method, try to increase the code usage.
+* Feel free to add the helper function. When implementing add and commit method, try to increase the code usage.
 
-4. `rm (String filename)` - 3 different cases, unstage the file if it is currently in staged for addition. If the file is
-tracked in current commit, stage it for removal and remove it in CWD. 
-5. `log()` - show the information of commit.
+4. `rm (String filename)` - consider 3 different cases:  
+-  If the file just be added but not being committed, it means the file is in stage for addition area. So unstaging the file in staged for addition is enough. 
+
+-  If the file is tracked in current commit and also exist in CWD, stage it for removal and remove it in CWD. The remove process will be recorded in the next commit.
+
+-   If the file is tracked in current commit but not exist in CWD, put the blob in staged for removal area will be enough. 
+> Failed situation: If a file is neither exist in stage for addition, nor tracked by commit, meaning the file
+ doesn't exist in CWD. "No reason to remove the file". 
+
+
+5. `log()` - show all commit information, print all commits backwards until reaches the init commit.
+> Use the for loop to print it all, until the parent commit reaches init commit. 
+> If there is a merge case, print commit's first and second parent. So the commit class, a second parent field should be added. 
+![img_6.png](img_6.png)
+
 6. `global_log()` - similar to log method, but doesn't care about the order of commit.
-7. `status()` - show the four gitlet area's information. 
+
+7. `status()` - show the four gitlet areas' information, which are: branches, staged files, removed 
+files, modifications not staged for commit and untracked files. 
+Try to use four helper function, to distinguish these four cases.
+
 8. `checkout()` - 3 different cases, try to split each situation in different helper
  method syntax.
-9. `branch(String branchName)` - creates a new pointer points to the current commit
+-  First case: checkout - [filename]. Recover the file content named "filename", it is tracked by current commit.
+ If the CWD doesn't exist the file with the filename, put the tracked file into CWD. Else if the file exists 
+ in CWD, overwrite it by the tracked file. 
+> Fail case: current commit doesn't track the file with the filename, "File does not exist in that commit."
+
+- Second case: checkout [commitID] - [filename]. Similar to the first case, but the tracked file should be found 
+in the specific commit. The specific commit is determined by commitID.
+> Fail case: specific commit doesn't track the file with the filename, "File does not exist in that commit."
+
+- Third case: checkout - [branchName]. Rename it to checkOutBranch - [branchName]. Change the HEAD pointer from pointing
+to the current branch to pointing to branchName. Takes all files in the commit at the head of the given branch, and puts them in the CWD, 
+overwriting the versions of the files that are already there if they exist. Also, at the end of this command, the given branch will be 
+become the HEAD branch. 
+> Fail case: If no branch with that name exists, "No such branch exist"; if branch is the current branch, "No need to checkout current branch";
+if file in CWD is untracked in current branch and would be overwritten by checkout, "There is an untracked file in the way;
+delete it, or add and commit it first". 
+
+9. `branch(String branchName)` - creates a new pointer points to the current commit.
 10. `reset(String commitID)` - checks out file tracked by the given commit, and also
  remove the head pointer to the given commit. 
 11. `merge(String branch)` - the most complicated command in gitlet, only
@@ -102,8 +137,9 @@ debug, and created more tests after finish the method.
 
 
 ### Class 3: Commit 
-> learnt from the helper video, also can be used in blob class each commit has its own sha1 hashcode, and message. The merged commit has the second parent. 
+> learnt from the helper video, the structure can also be used in blob class each commit has its own sha1 hashcode, and message. The merged commit has the second parent. 
 > The structure of commit shows in image below. 
+> A snapshot of the saved files in CWD
 
 #### Fields:
 * `String message` - contains the message of the commit
