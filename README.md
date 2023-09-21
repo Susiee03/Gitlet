@@ -18,4 +18,8 @@
        
 #### Method to get the whole project:
 * Opening the local terminal, find a directory you'd like to store the project, type git clone https://github.com/Susiee03/Gitlet.git
-* After finishing git clone, using the IDE(Intellij IDEA) to navigate the directory you choose, and open it. Then you could see the whole project. 
+* After finishing git clone, using the IDE(Intellij IDEA) to navigate the directory you choose, and open it. Then you could see the whole project.
+
+
+#### Related link of the project:
+* This is the cs61b course project, details can be found at: https://sp21.datastructur.es/materials/proj/proj2/proj2 
